@@ -6,8 +6,9 @@
 #include <ods_util.h>
 #include <serialPrint.h>
 #include <PWMServo.h>
+
 #define SER_DLY           250
-#define LOOP_DLY          20
+#define LOOP_DLY          10
 #define DEF_BAUD          115200
 
 #define AXIS_0_PIN  14
@@ -25,7 +26,7 @@
 
 
 #define LED_MODULO  25
-#define SER_OUT_MODULO  50
+#define SER_OUT_MODULO  5
 
 #define AIN_MAX 1023
 #define AIN_MID 512
@@ -35,6 +36,7 @@ bool serialOk;
 int tmr;
 uint32_t iCount;
 bool prntHex;
+
 int ain01;
 
 bool btn0;
@@ -90,11 +92,10 @@ void setup() {
   serialOk = false;
   iCount = 0;
   tmr = 25;
-  prntHex = true;
-  useVJoy = true;
+  prntHex = false;
+  useVJoy = false;
   printBtns = false;
   btnCount = 0;
-
 
   btn0 = false;
   btn1 = false;
@@ -151,10 +152,17 @@ void setup() {
 
   Serial.println("Serial Port OK");
 
-  vo00 = varObj(V_TYP_UINT10, true, -7);
-  vo01 = varObj(V_TYP_UINT10, false, 9);
-  vo02 = varObj(V_TYP_UINT10, true, 1);
-  vo03 = varObj(V_TYP_UINT10, false, 7);
+  vo00 = varObj(V_TYP_UINT10, true);
+  vo00.expoMode = 2;
+
+  vo01 = varObj(V_TYP_UINT10, false);
+  vo01.expoMode = 2;
+
+  vo02 = varObj(V_TYP_UINT10, true);
+  vo02.expoMode = 2;
+
+  vo03 = varObj(V_TYP_UINT10, false);
+  vo03.expoMode = 2;
 
   Serial.println("vo00:" + vo00.getBC());
   Serial.println("vo01:" + vo01.getBC());
@@ -162,96 +170,110 @@ void setup() {
   Serial.println("vo03:" + vo03.getBC());
 
 
-
   ledToggle();
   delay(1000);
   Serial.println("Setup done");
 }
 
-
 //=================================================================================================
 void handleSerIn() {
   String inStr = recvWithEndMarker();
-  if (inStr > "") {
+  if(inStr > "") {
 
     if (inStr == "vj") {
       useVJoy = !useVJoy;
       serPrnt("ic:" + String(iCount) + ":");
       serPrntNL("toggle between serial and joystick mode");
-      }
+    }
 
     else if (inStr == "h") {
       prntHex = !prntHex;
       serPrnt("ic:" + String(iCount) + ":");
       serPrntNL("toggle print in hex");
-      }
+    }
     else if (inStr == "s") {
       useServo = !useServo;
-      if (useServo)
+      if(useServo)
         useThrottleServo = false;
       serPrnt("ic:" + String(iCount) + ":");
       serPrntNL("toggle servo out en");
-      }
+    }
     else if (inStr == "th") {
       useThrottleServo = !useThrottleServo;
 
-      if (useThrottleServo)
+      if(useThrottleServo)
         useServo = false;
       serPrnt("ic:" + String(iCount) + ":");
       serPrntNL("toggle throttle servo out");
-      }
+    }
     else {
       serPrnt("ic:" + String(iCount) + ":");
       serPrnt(":" + inStr);
       serPrntNL(":unhandled cmd");
-      }
-
     }
+
   }
+}
 
 //=================================================================================================
 void taskSerialOut() {
   String tmpStr = "";
 
-  if (iCount % SER_OUT_MODULO == 0)
+  if (iCount % SER_OUT_MODULO == 0){
 
     Serial.print(F("tjs iC:"));
     Serial.print(String(iCount));
 
-    Serial.print(" b:" + (String)btn0 + (String)btn1 + (String)btn2 +(String)btn3);
+    Serial.print(" b:" + (String)btn0 + (String)btn1 + (String)btn2 + (String)btn3);
     Serial.print((String)btn4 + (String)btn5 + (String)btn6);
 
 
     if(prntHex){
       Serial.print(F(" a0:"));
       Serial.print(vo00.getVal(), HEX);
+      Serial.print(F(" xMd:"));
+      Serial.print(vo00.expoMode);
 
       Serial.print(F(" a1:"));
       Serial.print(vo01.getVal(), HEX);
+      Serial.print(F(" xMd:"));
+      Serial.print(vo01.expoMode);
 
       Serial.print(F(" a2:"));
       Serial.print(vo02.getVal(), HEX);
+      Serial.print(F(" xMd:"));
+      Serial.print(vo02.expoMode);
 
       Serial.print(F(" a3:"));
       Serial.print(vo03.getVal(), HEX);
+      Serial.print(F(" xMd:"));
+      Serial.print(vo03.expoMode);
     }
     else {
       Serial.print(F(" a0:"));
       Serial.print(vo00.getVal());
+      Serial.print(F(" xMd:"));
+      Serial.print(vo00.expoMode);
 
       Serial.print(F(" a1:"));
       Serial.print(vo01.getVal());
+      Serial.print(F(" xMd:"));
+      Serial.print(vo01.expoMode);
 
       Serial.print(F(" a2:"));
       Serial.print(vo02.getVal());
+      Serial.print(F(" xMd:"));
+      Serial.print(vo02.expoMode);
 
       Serial.print(F(" a3:"));
       Serial.print(vo03.getVal());
+      Serial.print(F(" xMd:"));
+      Serial.print(vo03.expoMode);
     }
 
     serPrntNL();
 
-
+    }
   }
 
 //=============================================================================
@@ -272,8 +294,8 @@ void taskTelemOut() {
     tmpStr += "_b6:" + String(btn6);
     tmpStr += "B66B";
     Serial.println(tmpStr);
-    }
   }
+}
 
 //=============================================================================
 void taskDigRead() {
@@ -304,7 +326,7 @@ void taskAnalogRead() {
   vo01.pushVal(analogRead(AXIS_1_PIN));
 
   vo02.pushVal(analogRead(AXIS_2_PIN));
-  vo03.pushVal(analogRead(AXIS_3_PIN));
+  //vo03.pushVal(analogRead(AXIS_3_PIN));
 }
 
 //=============================================================================
@@ -318,10 +340,10 @@ void taskAnalogWrite() {
 }
 //=============================================================================
 void taskHandle_js_out() {
-  Joystick.X(vo01.getVal());
-  Joystick.Y(vo00.getVal());
+  Joystick.X(vo00.getVal());
+  Joystick.Y(vo01.getVal());
   Joystick.Z(vo02.getVal());
-  Joystick.Zrotate(vo03.getVal());
+  Joystick.Zrotate(AIN_MID);
   Joystick.slider(AIN_MID);
   Joystick.sliderLeft(AIN_MID);
   Joystick.sliderRight(AIN_MID);
@@ -374,13 +396,14 @@ void loop() {
 
   if(useVJoy) {
     taskTelemOut();
-    }
+
+  }
   else {
-    taskHandle_js_out();
     taskSerialOut();
+    taskHandle_js_out();
   }
 
-  svo.write(svoPos);
+  //svo.write(svoPos);
   // a brief delay, so this runs 20 times per second
   delay(LOOP_DLY);
 }

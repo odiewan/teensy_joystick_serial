@@ -1,0 +1,8 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/teensy_joystick_serial/FileContentIndex
+/.vs/teensy_joystick_serial/v17/ipch/AutoPCH
+/.vs/teensy_joystick_serial/v17/ResourceExplorer
+/.vs/teensy_joystick_serial/v17
