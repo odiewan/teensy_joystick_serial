@@ -104,7 +104,7 @@
   </ImportGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties arduino.upload.port="COM29" custom_teensy40_usb="serialhid" />
+      <UserProperties arduino.upload.port="usb:0/140000/0/B/2/1" custom_teensy40_usb="serialhid" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

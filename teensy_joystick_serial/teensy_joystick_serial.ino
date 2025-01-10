@@ -32,6 +32,12 @@
 #define AIN_MID 512
 
 
+#define EXPO_MODE         EXP_MD_BILATERAL
+#define PITCH_EXPO_PARAM  15
+#define ROLL_EXPO_PARAM   15
+#define YAW_EXPO_PARAM    15
+
+
 bool serialOk;
 int tmr;
 uint32_t iCount;
@@ -68,9 +74,9 @@ uint8_t btn4_cnt;
 uint8_t btn5_cnt;
 uint8_t btn6_cnt;
 
-varObj vo00;
-varObj vo01;
-varObj vo02;
+varObj voRoll;
+varObj voPitch;
+varObj voYaw;
 varObj vo03;
 
 int btnCount;
@@ -162,21 +168,24 @@ void setup() {
 
   Serial.println("Serial Port OK");
 
-  vo00 = varObj(V_TYP_UINT10, true);
-  vo00.expoMode = 2;
+  voRoll = varObj(V_TYP_UINT10, true);
+  voRoll.expoMode = EXPO_MODE;
+  voRoll.setExpo(ROLL_EXPO_PARAM);
 
-  vo01 = varObj(V_TYP_UINT10, false);
-  vo01.expoMode = 2;
+  voPitch = varObj(V_TYP_UINT10, false);
+  voPitch.expoMode = EXPO_MODE;
+  voPitch.setExpo(PITCH_EXPO_PARAM);
 
-  vo02 = varObj(V_TYP_UINT10, true);
-  vo02.expoMode = 2;
+  voYaw = varObj(V_TYP_UINT10, true);
+  voYaw.expoMode = EXPO_MODE;
+  voYaw.setExpo(YAW_EXPO_PARAM);
 
-  vo03 = varObj(V_TYP_UINT10, false);
-  vo03.expoMode = 2;
+  //vo03 = varObj(V_TYP_UINT10, false);
+  //vo03.expoMode = EXPO_MODE;
 
-  Serial.println("vo00:" + vo00.getBC());
-  Serial.println("vo01:" + vo01.getBC());
-  Serial.println("vo02:" + vo02.getBC());
+  Serial.println("voRoll:" + voRoll.getBC());
+  Serial.println("voPitch:" + voPitch.getBC());
+  Serial.println("voYaw:" + voYaw.getBC());
   Serial.println("vo03:" + vo03.getBC());
 
 
@@ -242,32 +251,34 @@ void taskSerialOut() {
 
     if(prntHex){
       Serial.print(F(" a0:"));
-      Serial.print(vo00.getVal(), HEX);
+      Serial.print(voRoll.getVal(), HEX);
       Serial.print(F(" xMd:"));
-      Serial.print(vo00.expoMode);
+      Serial.print(voRoll.expoMode);
 
       Serial.print(F(" a1:"));
-      Serial.print(vo01.getVal(), HEX);
+      Serial.print(voPitch.getVal(), HEX);
       Serial.print(F(" xMd:"));
-      Serial.print(vo01.expoMode);
+      Serial.print(voPitch.expoMode);
 
     }
     else {
       Serial.print(F(" a0:"));
-      Serial.print(vo00.getVal());
+      Serial.print(voRoll.getVal());
       Serial.print(F(" xMd:"));
-      Serial.print(vo00.expoMode);
+      Serial.print(voRoll.expoMode);
 
       Serial.print(F(" a1:"));
-      Serial.print(vo01.getVal());
+      Serial.print(voPitch.getVal());
       Serial.print(F(" xMd:"));
-      Serial.print(vo01.expoMode);
-
-
-
+      Serial.print(voPitch.expoMode);
     }
 
-    //Serial.printf(" vo01.getNorm: %5.2f", vo01.getNorm());
+    Serial.print(F(" a2:"));
+    Serial.print(voYaw.getVal());
+    Serial.print(F(" xMd:"));
+    Serial.print(voYaw.expoMode);
+
+    //Serial.printf(" voPitch.getNorm: %5.2f", voPitch.getNorm());
     Serial.printf(" cpGain: %5.2f", camPitchGain);
     Serial.printf(" cpEn: %d", (int)camPitchEn);
     Serial.printf(" cp: %5.2f", camPitch);
@@ -283,10 +294,10 @@ void taskTelemOut() {
   String tmpStr = "";
   if (iCount % 1 == 0) {
     tmpStr += "A55A";
-    tmpStr += "_a0:" + String(vo00.getVal());
-    tmpStr += "_a1:" + String(vo01.getVal());
-    tmpStr += "_a2:" + String(vo02.getVal());
-    tmpStr += "_a3:" + String(vo03.getVal());
+    tmpStr += "_a0:" + String(voRoll.getVal());
+    tmpStr += "_a1:" + String(voPitch.getVal());
+    tmpStr += "_a2:" + String(voYaw.getVal());
+    //tmpStr += "_a3:" + String(vo03.getVal());
     tmpStr += "_b0:" + String(btn0);
     tmpStr += "_b1:" + String(btn1);
     tmpStr += "_b2:" + String(btn2);
@@ -324,10 +335,10 @@ void taskDigRead() {
 //=============================================================================
 void taskAnalogRead() {
 
-  vo00.pushVal(analogRead(AXIS_0_PIN));
-  vo01.pushVal(analogRead(AXIS_1_PIN));
+  voRoll.pushVal(analogRead(AXIS_0_PIN));
+  voPitch.pushVal(analogRead(AXIS_1_PIN));
 
-  vo02.pushVal(analogRead(AXIS_2_PIN));
+  voYaw.pushVal(analogRead(AXIS_2_PIN));
   //vo03.pushVal(analogRead(AXIS_3_PIN));
 }
 
@@ -342,10 +353,11 @@ void taskAnalogWrite() {
 }
 //=============================================================================
 void taskHandle_js_out() {
-  Joystick.X(vo00.getVal());
-  Joystick.Y(vo01.getVal());
-  Joystick.Z(vo02.getVal());
-  Joystick.Zrotate((int)camPitch);
+  Joystick.X(voRoll.getVal());
+  Joystick.Y(voPitch.getVal());
+  Joystick.Z(voYaw.getVal());
+  Joystick.Zrotate(AIN_MID);
+  //Joystick.Zrotate((int)camPitch);
   Joystick.slider(AIN_MID);
   Joystick.sliderLeft(AIN_MID);
   Joystick.sliderRight(AIN_MID);
@@ -360,16 +372,14 @@ void taskHandle_js_out() {
   Joystick.button(3, btn2);
   Joystick.button(4, btn3);
 
-  Joystick.button(5, btn4);
-  Joystick.button(6, btn5);
-  Joystick.button(7, btn6);
+
 }
 
 //=============================================================================
 void doMixing() {
   static int tempPitch = 0;
   if (camPitchEn == true) {
-    camPitch = camPitchGain * ((float)vo01.getVal() - 512.0);
+    camPitch = camPitchGain * ((float)voPitch.getVal() - 512.0);
     camPitch += 512.0;
     //camPitch += camPitchGain * 512.0;
     //camPitch = tempPitch;
@@ -382,7 +392,7 @@ void doMixing() {
    if (useServo)
      svoPos = map((float)ain01, 215, 880, 10, 170);
    else if (useThrottleServo)
-     svoPos = map((float)vo00.getVal(), 215, 880, 10, 170);
+     svoPos = map((float)voRoll.getVal(), 215, 880, 10, 170);
 
   }
 
