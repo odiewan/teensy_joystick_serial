@@ -79,6 +79,11 @@ bool useVJoy;
 bool useServo;
 bool useThrottleServo;
 bool printBtns;
+bool camPitchEn;
+
+float camPitch;
+float camPitchGain;
+
 
 PWMServo svo;
 int svoPos;
@@ -122,6 +127,11 @@ void setup() {
   btn4_cnt = 0;
   btn5_cnt = 0;
   btn6_cnt = 0;
+
+  camPitchEn = false;
+
+  camPitch = 0.0;
+  camPitchGain = 1.0;
 
   pinMode(AXIS_0_PIN, INPUT);
   pinMode(AXIS_1_PIN, INPUT);
@@ -179,6 +189,8 @@ void setup() {
 void handleSerIn() {
   String inStr = recvWithEndMarker();
   if(inStr > "") {
+
+    serPrntNL(handleFloatParam(&camPitchGain, "cpg", inStr, 1.0, 0));
 
     if (inStr == "vj") {
       useVJoy = !useVJoy;
@@ -239,15 +251,6 @@ void taskSerialOut() {
       Serial.print(F(" xMd:"));
       Serial.print(vo01.expoMode);
 
-      Serial.print(F(" a2:"));
-      Serial.print(vo02.getVal(), HEX);
-      Serial.print(F(" xMd:"));
-      Serial.print(vo02.expoMode);
-
-      Serial.print(F(" a3:"));
-      Serial.print(vo03.getVal(), HEX);
-      Serial.print(F(" xMd:"));
-      Serial.print(vo03.expoMode);
     }
     else {
       Serial.print(F(" a0:"));
@@ -260,16 +263,15 @@ void taskSerialOut() {
       Serial.print(F(" xMd:"));
       Serial.print(vo01.expoMode);
 
-      Serial.print(F(" a2:"));
-      Serial.print(vo02.getVal());
-      Serial.print(F(" xMd:"));
-      Serial.print(vo02.expoMode);
 
-      Serial.print(F(" a3:"));
-      Serial.print(vo03.getVal());
-      Serial.print(F(" xMd:"));
-      Serial.print(vo03.expoMode);
+
     }
+
+    //Serial.printf(" vo01.getNorm: %5.2f", vo01.getNorm());
+    Serial.printf(" cpGain: %5.2f", camPitchGain);
+    Serial.printf(" cpEn: %d", (int)camPitchEn);
+    Serial.printf(" cp: %5.2f", camPitch);
+
 
     serPrntNL();
 
@@ -308,7 +310,7 @@ void taskDigRead() {
   btn5 = digitalRead(BTN5_PIN) ? false : true;
   btn6 = digitalRead(BTN6_PIN) ? false : true;
 
-
+  camPitchEn = btn0;
 
   btn0Shadow = btn0;
   btn1Shadow = btn1;
@@ -343,7 +345,7 @@ void taskHandle_js_out() {
   Joystick.X(vo00.getVal());
   Joystick.Y(vo01.getVal());
   Joystick.Z(vo02.getVal());
-  Joystick.Zrotate(AIN_MID);
+  Joystick.Zrotate((int)camPitch);
   Joystick.slider(AIN_MID);
   Joystick.sliderLeft(AIN_MID);
   Joystick.sliderRight(AIN_MID);
@@ -365,18 +367,22 @@ void taskHandle_js_out() {
 
 //=============================================================================
 void doMixing() {
-  // if (vo02.Val > 650 && vo02.Val < 750) {
-  //   sld_led0 = 255;
-  //   sld_led1 = 255;
-  //   }
-  // else {
-  //   sld_led0 = 0;
-  //   sld_led1 = 0;
-  //   }
-  // if (useServo)
-  //   svoPos = map((float)ain01, 215, 880, 10, 170);
-  // else if (useThrottleServo)
-  //   svoPos = map((float)vo00.getVal(), 215, 880, 10, 170);
+  static int tempPitch = 0;
+  if (camPitchEn == true) {
+    camPitch = camPitchGain * ((float)vo01.getVal() - 512.0);
+    camPitch += 512.0;
+    //camPitch += camPitchGain * 512.0;
+    //camPitch = tempPitch;
+  }
+  else
+    camPitch = 0.0;
+
+
+
+   if (useServo)
+     svoPos = map((float)ain01, 215, 880, 10, 170);
+   else if (useThrottleServo)
+     svoPos = map((float)vo00.getVal(), 215, 880, 10, 170);
 
   }
 
@@ -390,6 +396,7 @@ void loop() {
   taskDigRead();
   handleSerIn();
 
+  doMixing();
 
   taskAnalogWrite();
   taskDigWrite();
