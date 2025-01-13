@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <Adafruit_NeoPixel.h>
 #include <varObj.h>
 #include <ods_util.h>
 #include <serialPrint.h>
@@ -11,10 +12,13 @@
 #define LOOP_DLY          10
 #define DEF_BAUD          115200
 
-#define AXIS_0_PIN  14
-#define AXIS_1_PIN  15
-#define AXIS_2_PIN  16
-#define AXIS_3_PIN  17
+#define NUM_PIXELS        1
+
+#define AXIS_0_PIN  14 // A0
+#define AXIS_1_PIN  15 // A1
+#define AXIS_2_PIN  16 // A2
+
+
 
 #define BTN0_PIN    2
 #define BTN1_PIN    3
@@ -23,6 +27,9 @@
 #define BTN4_PIN    6
 #define BTN5_PIN    7
 #define BTN6_PIN    8
+
+#define NEOPIXEL_PIN    A3
+#define NEOKEY_BTN_PIN  A4
 
 
 #define LED_MODULO  25
@@ -34,8 +41,8 @@
 
 #define EXPO_MODE         EXP_MD_BILATERAL
 #define PITCH_EXPO_PARAM  15
-#define ROLL_EXPO_PARAM   15
-#define YAW_EXPO_PARAM    15
+#define ROLL_EXPO_PARAM   17
+#define YAW_EXPO_PARAM    16
 
 
 bool serialOk;
@@ -46,6 +53,7 @@ bool prntHex;
 int ain01;
 
 bool btn0;
+
 bool btn1;
 bool btn2;
 bool btn3;
@@ -53,7 +61,7 @@ bool btn4;
 bool btn5;
 bool btn6;
 
-bool btn4led;
+bool neopixelBtn;
 
 bool btn0Shadow;
 bool btn1Shadow;
@@ -91,6 +99,8 @@ float camPitch;
 float camPitchGain;
 
 
+Adafruit_NeoPixel neoKey = Adafruit_NeoPixel(NUM_PIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
 PWMServo svo;
 int svoPos;
 
@@ -116,7 +126,7 @@ void setup() {
   btn5 = false;
   btn6 = false;
 
-  btn4led = false;
+  neopixelBtn = false;
 
   btn0Shadow = false;
   btn1Shadow = false;
@@ -139,21 +149,6 @@ void setup() {
   camPitch = 0.0;
   camPitchGain = 1.0;
 
-  pinMode(AXIS_0_PIN, INPUT);
-  pinMode(AXIS_1_PIN, INPUT);
-  pinMode(AXIS_2_PIN, INPUT);
-  pinMode(AXIS_3_PIN, INPUT);
-
-  pinMode(BTN0_PIN, INPUT_PULLUP);
-  pinMode(BTN1_PIN, INPUT_PULLUP);
-  pinMode(BTN2_PIN, INPUT_PULLUP);
-  pinMode(BTN3_PIN, INPUT_PULLUP);
-  pinMode(BTN4_PIN, INPUT_PULLUP);
-  pinMode(BTN5_PIN, INPUT_PULLUP);
-  pinMode(BTN6_PIN, INPUT_PULLUP);
-  pinMode(LED_BUILTIN, OUTPUT);
-
-
   Serial.begin(DEF_BAUD);
 
   while (tmr > 0 && serialOk) {
@@ -168,6 +163,30 @@ void setup() {
 
   Serial.println("Serial Port OK");
 
+  Serial.println("Init AIN channels");
+  pinMode(AXIS_0_PIN, INPUT);
+  pinMode(AXIS_1_PIN, INPUT);
+  pinMode(AXIS_2_PIN, INPUT);
+
+  Serial.println("Init DIN channels");
+  pinMode(NEOKEY_BTN_PIN, INPUT_PULLUP);
+  pinMode(BTN0_PIN, INPUT_PULLUP);
+  pinMode(BTN1_PIN, INPUT_PULLUP);
+  pinMode(BTN2_PIN, INPUT_PULLUP);
+  pinMode(BTN3_PIN, INPUT_PULLUP);
+  pinMode(BTN4_PIN, INPUT_PULLUP);
+  pinMode(BTN5_PIN, INPUT_PULLUP);
+  pinMode(BTN6_PIN, INPUT_PULLUP);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  Serial.println("Init NeoKey");
+  neoKey.begin();
+  neoKey.setBrightness(50);
+  neoKey.setPixelColor(0, 0xFF00FF00);
+  neoKey.show();
+
+
+  Serial.println("Init varObj instances");
   voRoll = varObj(V_TYP_UINT10, true);
   voRoll.expoMode = EXPO_MODE;
   voRoll.setExpo(ROLL_EXPO_PARAM);
@@ -246,42 +265,40 @@ void taskSerialOut() {
     Serial.print(String(iCount));
 
     Serial.print(" b:" + (String)btn0 + (String)btn1 + (String)btn2 + (String)btn3);
-    Serial.print((String)btn4 + (String)btn5 + (String)btn6);
+    Serial.print((String)btn4 + (String)btn5 + (String)btn6 + ":N:" + (String)neopixelBtn);
 
 
-    if(prntHex){
-      Serial.print(F(" a0:"));
-      Serial.print(voRoll.getVal(), HEX);
-      Serial.print(F(" xMd:"));
-      Serial.print(voRoll.expoMode);
+    Serial.print(F(" Roll:"));
+    Serial.print(voRoll.getVal());
+    Serial.print(F(":"));
+    Serial.print(voRoll.getNorm());
+    Serial.print(F(" xMd:"));
+    Serial.print(voRoll.expoMode);
+    Serial.print(F(" expo:"));
+    Serial.print(voRoll.expoParam);
 
-      Serial.print(F(" a1:"));
-      Serial.print(voPitch.getVal(), HEX);
-      Serial.print(F(" xMd:"));
-      Serial.print(voPitch.expoMode);
+    Serial.print(F(" Pitch:"));
+    Serial.print(voPitch.getVal());
+    Serial.print(F(":"));
+    Serial.print(voPitch.getNorm());
+    Serial.print(F(" xMd:"));
+    Serial.print(voPitch.expoMode);
+    Serial.print(F(" expo:"));
+    Serial.print(voPitch.expoParam);
 
-    }
-    else {
-      Serial.print(F(" a0:"));
-      Serial.print(voRoll.getVal());
-      Serial.print(F(" xMd:"));
-      Serial.print(voRoll.expoMode);
-
-      Serial.print(F(" a1:"));
-      Serial.print(voPitch.getVal());
-      Serial.print(F(" xMd:"));
-      Serial.print(voPitch.expoMode);
-    }
-
-    Serial.print(F(" a2:"));
+    Serial.print(F(" Yaw:"));
     Serial.print(voYaw.getVal());
+    Serial.print(F(":"));
+    Serial.print(voYaw.getNorm());
     Serial.print(F(" xMd:"));
     Serial.print(voYaw.expoMode);
+    Serial.print(F(" expo:"));
+    Serial.print(voYaw.expoParam);
 
-    //Serial.printf(" voPitch.getNorm: %5.2f", voPitch.getNorm());
-    Serial.printf(" cpGain: %5.2f", camPitchGain);
-    Serial.printf(" cpEn: %d", (int)camPitchEn);
-    Serial.printf(" cp: %5.2f", camPitch);
+    ////Serial.printf(" voPitch.getNorm: %5.2f", voPitch.getNorm());
+    //Serial.printf(" cpGain: %5.2f", camPitchGain);
+    //Serial.printf(" cpEn: %d", (int)camPitchEn);
+    //Serial.printf(" cp: %5.2f", camPitch);
 
 
     serPrntNL();
@@ -321,7 +338,10 @@ void taskDigRead() {
   btn5 = digitalRead(BTN5_PIN) ? false : true;
   btn6 = digitalRead(BTN6_PIN) ? false : true;
 
+  neopixelBtn = digitalRead(NEOKEY_BTN_PIN) ? false : true;
+
   camPitchEn = btn0;
+
 
   btn0Shadow = btn0;
   btn1Shadow = btn1;
@@ -344,7 +364,6 @@ void taskAnalogRead() {
 
 //=============================================================================
 void taskDigWrite() {
-  // digitalWrite(BTN4_LED_PIN, btn4led);
 }
 
 //=============================================================================
@@ -371,13 +390,14 @@ void taskHandle_js_out() {
 
   Joystick.button(3, btn2);
   Joystick.button(4, btn3);
+  Joystick.button(5, neopixelBtn);
 
 
 }
 
 //=============================================================================
 void doMixing() {
-  static int tempPitch = 0;
+  //static int tempPitch = 0;
   if (camPitchEn == true) {
     camPitch = camPitchGain * ((float)voPitch.getVal() - 512.0);
     camPitch += 512.0;
@@ -397,6 +417,15 @@ void doMixing() {
   }
 
 //=============================================================================
+void taskNeoPixel() {
+  if (neopixelBtn)
+    neoKey.setPixelColor(0, 0xFF00FF00);
+  else
+    neoKey.setPixelColor(0, 0x003f0000);
+  neoKey.show();
+}
+
+//=============================================================================
 void loop() {
   iCount++;
   if (iCount % LED_MODULO == 0)
@@ -410,6 +439,8 @@ void loop() {
 
   taskAnalogWrite();
   taskDigWrite();
+
+  taskNeoPixel();
 
   if(useVJoy) {
     taskTelemOut();

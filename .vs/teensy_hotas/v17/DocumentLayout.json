@@ -1,0 +1,100 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Odie\\source\\repos\\Arduino Projects\\teensy_hotas_projects\\teensy_joystick_serial\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{F4AF3E7A-77A6-4F3A-9C30-0FA3E4A3D51A}|teensy_joystick_serial\\teensy_joystick_serial.vcxproj|C:\\Users\\Odie\\source\\repos\\Arduino Projects\\teensy_hotas_projects\\teensy_joystick_serial\\teensy_joystick_serial\\teensy_joystick_serial.ino||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{F4AF3E7A-77A6-4F3A-9C30-0FA3E4A3D51A}|teensy_joystick_serial\\teensy_joystick_serial.vcxproj|solutionrelative:teensy_joystick_serial\\teensy_joystick_serial.ino||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Odie\\Documents\\Arduino\\libraries\\ods_util\\ods_util.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 12,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{873151d0-cf2e-48cc-b4bf-ad0394f6a3c3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{fbcae063-e2c0-4ab1-a516-996ea3dafb72}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{74946827-37a0-11d2-a273-00c04f8ef4ff}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e5c86464-96be-4d7c-9a8b-abcb3bbf5f92}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:3:0:{a5bcb0eb-fac4-4da9-8495-f396c7e8e774}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{ef015ac2-a984-4d0e-b764-efd18fa9ff4c}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:4:0:{57e7c9f9-883b-4af3-ad57-c9517f2771aa}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:2:0:{ef015ac2-a984-4d0e-b764-efd18fa9ff4c}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{493a4fd3-0a2f-4438-ae61-d77cb72e8747}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "teensy_joystick_serial.ino",
+              "DocumentMoniker": "C:\\Users\\Odie\\source\\repos\\Arduino Projects\\teensy_hotas_projects\\teensy_joystick_serial\\teensy_joystick_serial\\teensy_joystick_serial.ino",
+              "RelativeDocumentMoniker": "teensy_joystick_serial\\teensy_joystick_serial.ino",
+              "ToolTip": "C:\\Users\\Odie\\source\\repos\\Arduino Projects\\teensy_hotas_projects\\teensy_joystick_serial\\teensy_joystick_serial\\teensy_joystick_serial.ino",
+              "RelativeToolTip": "teensy_joystick_serial\\teensy_joystick_serial.ino",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-01-12T10:29:30.76Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ods_util.h",
+              "DocumentMoniker": "C:\\Users\\Odie\\Documents\\Arduino\\libraries\\ods_util\\ods_util.h",
+              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\Documents\\Arduino\\libraries\\ods_util\\ods_util.h",
+              "ToolTip": "C:\\Users\\Odie\\Documents\\Arduino\\libraries\\ods_util\\ods_util.h",
+              "RelativeToolTip": "..\\..\\..\\..\\..\\Documents\\Arduino\\libraries\\ods_util\\ods_util.h",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAgwBkAAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-01-06T17:19:37.885Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
