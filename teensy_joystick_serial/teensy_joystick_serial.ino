@@ -1,8 +1,17 @@
 //---set usb type as flight sim controls + joystick
+
+
+#include <seesaw_spectrum.h>
+#include <seesaw_servo.h>
+#include <seesaw_neopixel.h>
+#include <seesaw_motor.h>
+#include <Adafruit_TFTShield18.h>
+#include <Adafruit_NeoTrellis.h>
+#include <Adafruit_miniTFTWing.h>
+#include <Adafruit_Crickit.h>
+#include <Adafruit_seesaw.h>
+#include <Adafruit_NeoKey_1x4.h>
 #include <Arduino.h>
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_NeoPixel.h>
 #include <varObj.h>
 #include <ods_util.h>
 #include <serialPrint.h>
@@ -44,7 +53,25 @@
 #define ROLL_EXPO_PARAM   17
 #define YAW_EXPO_PARAM    16
 
+#define Y_DIM 2 //number of rows of keys
+#define X_DIM 4 //number of columns of keys
 
+enum opModes {
+  OP_MD_NONE,
+  OP_MD_ROLL,
+  OP_MD_PITCH,
+  OP_MD_YAW,
+  NUM_OP_MODES
+};
+
+String opMdStrs[] = {
+  "None",
+  "Adj Roll",
+  "Adj Pitch",
+  "Adj Yaw"
+};
+
+int opMd;
 bool serialOk;
 int tmr;
 uint32_t iCount;
@@ -52,8 +79,14 @@ bool prntHex;
 
 int ain01;
 
-bool btn0;
+uint8_t neopixelBtns;
 
+bool neoPxlBtn0;
+bool neoPxlBtn1;
+bool neoPxlBtn2;
+bool neoPxlBtn3;
+
+bool btn0;
 bool btn1;
 bool btn2;
 bool btn3;
@@ -61,7 +94,13 @@ bool btn4;
 bool btn5;
 bool btn6;
 
-bool neopixelBtn;
+int enYawExpoInc;
+int enYawExpoDec;
+int enRollExpoInc;
+int enRollExpoDec;
+int enPitchExpoInc;
+int enPitchExpoDec;
+
 
 bool btn0Shadow;
 bool btn1Shadow;
@@ -99,16 +138,18 @@ float camPitch;
 float camPitchGain;
 
 
-Adafruit_NeoPixel neoKey = Adafruit_NeoPixel(NUM_PIXELS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoKey_1x4 neoKey;
 
 PWMServo svo;
 int svoPos;
+
 
 //=============================================================================
 void setup() {
   svo.attach(2, 1000, 2000);
   ain01 = 0;
   svoPos = 90;
+  opMd = OP_MD_NONE;
 
   serialOk = false;
   iCount = 0;
@@ -126,7 +167,18 @@ void setup() {
   btn5 = false;
   btn6 = false;
 
-  neopixelBtn = false;
+  enYawExpoInc = 0;
+  enYawExpoDec = 0;
+  enRollExpoInc = 0;
+  enRollExpoDec = 0;
+  enPitchExpoInc = 0;
+  enPitchExpoDec = 0;
+
+  neopixelBtns = 0;
+  neoPxlBtn0 = false;
+  neoPxlBtn1 = false;
+  neoPxlBtn2 = false;
+  neoPxlBtn3 = false;
 
   btn0Shadow = false;
   btn1Shadow = false;
@@ -169,7 +221,7 @@ void setup() {
   pinMode(AXIS_2_PIN, INPUT);
 
   Serial.println("Init DIN channels");
-  pinMode(NEOKEY_BTN_PIN, INPUT_PULLUP);
+  //pinMode(NEOKEY_BTN_PIN, INPUT_PULLUP);
   pinMode(BTN0_PIN, INPUT_PULLUP);
   pinMode(BTN1_PIN, INPUT_PULLUP);
   pinMode(BTN2_PIN, INPUT_PULLUP);
@@ -179,11 +231,27 @@ void setup() {
   pinMode(BTN6_PIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  Serial.println("Init NeoKey");
-  neoKey.begin();
-  neoKey.setBrightness(50);
-  neoKey.setPixelColor(0, 0xFF00FF00);
-  neoKey.show();
+  Serial.println("Init neoKey");
+  if (!neoKey.begin(0x30)) {
+    Serial.println("Could not start neoKey!!!");
+    //while (1) delay(10);
+  }
+  else
+    Serial.println("Neokey init good");
+
+  ledToggle();
+  delay(1000);
+
+  for (uint16_t i = 0; i < neoKey.pixels.numPixels(); i++) {
+    neoKey.pixels.setPixelColor(i, Wheel(map(i, 0, neoKey.pixels.numPixels(), 0, 255)));
+    neoKey.pixels.show();
+    delay(50);
+  }
+  for (uint16_t i = 0; i < neoKey.pixels.numPixels(); i++) {
+    neoKey.pixels.setPixelColor(i, 0x000000);
+    neoKey.pixels.show();
+    delay(50);
+  }
 
 
   Serial.println("Init varObj instances");
@@ -264,36 +332,71 @@ void taskSerialOut() {
     Serial.print(F("tjs iC:"));
     Serial.print(String(iCount));
 
-    Serial.print(" b:" + (String)btn0 + (String)btn1 + (String)btn2 + (String)btn3);
-    Serial.print((String)btn4 + (String)btn5 + (String)btn6 + ":N:" + (String)neopixelBtn);
+    Serial.print(" opM:" + opMdStrs[opMd]);
 
 
-    Serial.print(F(" Roll:"));
-    Serial.print(voRoll.getVal());
-    Serial.print(F(":"));
-    Serial.print(voRoll.getNorm());
-    Serial.print(F(" xMd:"));
-    Serial.print(voRoll.expoMode);
-    Serial.print(F(" expo:"));
-    Serial.print(voRoll.expoParam);
 
-    Serial.print(F(" Pitch:"));
-    Serial.print(voPitch.getVal());
-    Serial.print(F(":"));
-    Serial.print(voPitch.getNorm());
-    Serial.print(F(" xMd:"));
-    Serial.print(voPitch.expoMode);
-    Serial.print(F(" expo:"));
-    Serial.print(voPitch.expoParam);
+    switch (opMd) {
+      case OP_MD_NONE:
+      default:
+        Serial.print(" b:" + (String)btn0 + (String)btn1 + (String)btn2 + (String)btn3);
+        Serial.print((String)btn4 + (String)btn5 + (String)btn6); 
+        Serial.print(" N:" + (String)neopixelBtns);
+        Serial.print(">" + (String)neoPxlBtn0);
+        Serial.print(":" + (String)neoPxlBtn1);
+        Serial.print(":" + (String)neoPxlBtn2);
+        Serial.print(":" + (String)neoPxlBtn3);
+        Serial.print(F(" Roll:"));
+        Serial.print(voRoll.getVal());
 
-    Serial.print(F(" Yaw:"));
-    Serial.print(voYaw.getVal());
-    Serial.print(F(":"));
-    Serial.print(voYaw.getNorm());
-    Serial.print(F(" xMd:"));
-    Serial.print(voYaw.expoMode);
-    Serial.print(F(" expo:"));
-    Serial.print(voYaw.expoParam);
+        Serial.print(F(" Pitch:"));
+        Serial.print(voPitch.getVal());
+
+        Serial.print(F(" Yaw:"));
+        Serial.print(voYaw.getVal());
+        break;
+
+      case OP_MD_ROLL:
+        Serial.print(F(" Roll:"));
+        Serial.print(" R+:");
+        Serial.print(enRollExpoInc);
+        Serial.print(" R-:");
+        Serial.print(enRollExpoDec);
+
+        Serial.print(F(" v:"));
+        Serial.print(voRoll.getVal());
+        Serial.print(F(" expo:"));
+        Serial.print(voRoll.expoParam);
+
+        break;
+
+      case OP_MD_PITCH:
+        Serial.print(F(" Pitch:"));
+        Serial.print(" P+:");
+        Serial.print(enPitchExpoInc);
+        Serial.print(" P- :");
+        Serial.print(enPitchExpoInc);
+
+        Serial.print(F(" v:"));
+        Serial.print(voPitch.getVal());
+        Serial.print(F(" expo:"));
+        Serial.print(voPitch.expoParam);
+        break;
+
+      case OP_MD_YAW:
+        Serial.print(F(" Yaw:"));
+        Serial.print(" Y+:");
+        Serial.print(enYawExpoInc);
+        Serial.print(" Y-:");
+        Serial.print(enYawExpoDec);
+
+        Serial.print(enYawExpoDec);
+        Serial.print(F(" v:"));
+        Serial.print(voYaw.getVal());
+        Serial.print(F(" expo:"));
+        Serial.print(voYaw.expoParam);
+        break;
+    }
 
     ////Serial.printf(" voPitch.getNorm: %5.2f", voPitch.getNorm());
     //Serial.printf(" cpGain: %5.2f", camPitchGain);
@@ -338,7 +441,12 @@ void taskDigRead() {
   btn5 = digitalRead(BTN5_PIN) ? false : true;
   btn6 = digitalRead(BTN6_PIN) ? false : true;
 
-  neopixelBtn = digitalRead(NEOKEY_BTN_PIN) ? false : true;
+  neopixelBtns = neoKey.read();
+  
+  neoPxlBtn0 = neopixelBtns == 1 ? true : false;
+  neoPxlBtn1 = neopixelBtns == 2 ? true : false;
+  neoPxlBtn2 = neopixelBtns == 4 ? true : false;
+  neoPxlBtn3 = neopixelBtns == 8 ? true : false;
 
   camPitchEn = btn0;
 
@@ -390,7 +498,7 @@ void taskHandle_js_out() {
 
   Joystick.button(3, btn2);
   Joystick.button(4, btn3);
-  Joystick.button(5, neopixelBtn);
+  Joystick.button(5, neopixelBtns);
 
 
 }
@@ -417,12 +525,134 @@ void doMixing() {
   }
 
 //=============================================================================
+void taskOpMode() {
+  static bool _neoPxlBtnShadow = false;
+
+  if(iCount % 10 == 0){
+    if (neoPxlBtn0 != _neoPxlBtnShadow && neoPxlBtn0)
+      opMd++;
+
+    if (opMd > OP_MD_YAW)
+      opMd = OP_MD_NONE;
+
+    _neoPxlBtnShadow = neoPxlBtn0;
+  }
+
+
+}
+
+//=============================================================================
 void taskNeoPixel() {
-  if (neopixelBtn)
-    neoKey.setPixelColor(0, 0xFF00FF00);
-  else
-    neoKey.setPixelColor(0, 0x003f0000);
-  neoKey.show();
+
+  for(int i = 0; i < NEO_TRELLIS_NUM_KEYS; i++)
+    neoKey.pixels.setPixelColor(i, 0x003f0000);
+
+  switch (opMd) {
+    case OP_MD_NONE:
+    default:
+      break;
+
+    case OP_MD_ROLL:
+      neoKey.pixels.setPixelColor(1, 0xFF00FF00);
+      break;
+
+    case OP_MD_PITCH:
+      neoKey.pixels.setPixelColor(2, 0xFF00FF00);
+      break;
+  
+    case OP_MD_YAW:
+      neoKey.pixels.setPixelColor(3, 0xFF00FF00);
+      break;
+  }
+  neoKey.pixels.show();
+}
+
+//=============================================================================
+void taskExpoEdit() {
+  switch (opMd) {
+    case OP_MD_NONE:
+    default:
+      break;
+
+    case OP_MD_ROLL:
+      //Serial.println("tpe: ROll");
+      if (voYaw.getVal() > 1020) {
+        enRollExpoInc++;
+        enRollExpoDec = 0;
+
+        if(enRollExpoInc == 1)
+        {
+          voRoll.expoParam++;
+          voRoll.setExpo();
+        }
+      }
+      else if (voYaw.getVal() < 3) {
+        enRollExpoDec++;
+        enRollExpoInc = 0;
+
+        if (enRollExpoDec == 1)
+        {
+          voRoll.expoParam--;
+          voRoll.setExpo();
+        }
+      }
+      else {
+        enRollExpoInc = 0;
+        enRollExpoDec = 0;
+      }
+      break;
+
+    case OP_MD_PITCH:
+      //----yaw max: inc pitch expo
+      if (voYaw.getVal() > 1020) {
+
+        enPitchExpoInc++;
+        enPitchExpoDec = 0;
+
+        if(enPitchExpoInc == 1){
+          voPitch.expoParam++;
+          voPitch.setExpo();
+        }
+      }
+      //---yaw min: dec pitch expo
+      else if (voYaw.getVal() < 3) {
+        enYawExpoInc++;
+        enYawExpoDec = 0;
+
+
+        if(enPitchExpoDec == 1) {
+          voPitch.expoParam--;
+          voPitch.setExpo();
+        }
+      }
+      //---everything else
+      else {
+        enPitchExpoInc = 0;
+        enPitchExpoInc = 0;
+      }
+      break;
+
+    case OP_MD_YAW:
+      if (voYaw.getVal() > 1020) {
+        enYawExpoInc++;
+        enYawExpoDec = 0;
+
+        if(enYawExpoInc == 1){
+          voYaw.expoParam++;
+          voYaw.setExpo();
+        }
+      }
+      else if (voYaw.getVal() < 3) {
+        enYawExpoDec = 0;
+        enYawExpoInc++;
+        
+        if(enYawExpoDec == 1) {
+          voYaw.expoParam--;
+          voYaw.setExpo();
+        }
+      }
+      break;
+  }
 }
 
 //=============================================================================
@@ -434,9 +664,11 @@ void loop() {
   taskAnalogRead();
   taskDigRead();
   handleSerIn();
+  taskOpMode();
 
   doMixing();
 
+  taskExpoEdit();
   taskAnalogWrite();
   taskDigWrite();
 
