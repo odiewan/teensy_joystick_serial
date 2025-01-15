@@ -53,6 +53,8 @@
 #define ROLL_EXPO_PARAM   17
 #define YAW_EXPO_PARAM    16
 
+#define EXPO_EDIT_MODE_TIMEOUT  50
+
 #define Y_DIM 2 //number of rows of keys
 #define X_DIM 4 //number of columns of keys
 
@@ -143,6 +145,8 @@ Adafruit_NeoKey_1x4 neoKey;
 PWMServo svo;
 int svoPos;
 
+int expoModeTmr;
+
 
 //=============================================================================
 void setup() {
@@ -150,7 +154,7 @@ void setup() {
   ain01 = 0;
   svoPos = 90;
   opMd = OP_MD_NONE;
-
+  expoModeTmr = EXPO_EDIT_MODE_TIMEOUT;
   serialOk = false;
   iCount = 0;
   tmr = 25;
@@ -498,7 +502,9 @@ void taskHandle_js_out() {
 
   Joystick.button(3, btn2);
   Joystick.button(4, btn3);
-  Joystick.button(5, neopixelBtns);
+  Joystick.button(5, neoPxlBtn3);
+  Joystick.button(6, neoPxlBtn2);
+  Joystick.button(7, neoPxlBtn1);
 
 
 }
@@ -530,10 +536,30 @@ void taskOpMode() {
 
   if(iCount % 10 == 0){
     if (neoPxlBtn0 != _neoPxlBtnShadow && neoPxlBtn0)
+    {
       opMd++;
+      expoModeTmr = EXPO_EDIT_MODE_TIMEOUT;
+    }
 
     if (opMd > OP_MD_YAW)
       opMd = OP_MD_NONE;
+
+    switch (opMd) {
+      default:
+      case OP_MD_NONE:
+        break;
+
+      case OP_MD_ROLL:
+      case OP_MD_PITCH:
+      case OP_MD_YAW:
+        expoModeTmr--;
+        if (expoModeTmr <= 0)
+        {
+          opMd = OP_MD_NONE;
+        }
+        break;
+    }
+
 
     _neoPxlBtnShadow = neoPxlBtn0;
   }
