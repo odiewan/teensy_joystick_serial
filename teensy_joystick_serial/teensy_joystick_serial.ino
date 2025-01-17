@@ -13,6 +13,8 @@
 #include <Adafruit_NeoKey_1x4.h>
 #include <Arduino.h>
 #include <varObj.h>
+#include <EEPROM.h>
+#include <eeprom_datum.h>
 #include <ods_util.h>
 #include <serialPrint.h>
 #include <PWMServo.h>
@@ -27,6 +29,11 @@
 #define AXIS_1_PIN  15 // A1
 #define AXIS_2_PIN  16 // A2
 
+#define YAW_EXPO_INC_THRES 3
+#define YAW_EXPO_DEC_THRES 1020
+
+#define EEPROM_SIZE             512
+#define EEPROM_DELAY            5
 
 
 #define BTN0_PIN    2
@@ -42,15 +49,15 @@
 
 
 #define LED_MODULO  25
-#define SER_OUT_MODULO  5
+#define SER_OUT_MODULO  10
 
 #define AIN_MAX 1023
 #define AIN_MID 512
 
 
 #define EXPO_MODE         EXP_MD_BILATERAL
-#define PITCH_EXPO_PARAM  15
-#define ROLL_EXPO_PARAM   17
+#define PITCH_EXPO_PARAM  18
+#define ROLL_EXPO_PARAM   18
 #define YAW_EXPO_PARAM    16
 
 #define EXPO_EDIT_MODE_TIMEOUT  50
@@ -147,6 +154,101 @@ int svoPos;
 
 int expoModeTmr;
 
+enum eeprom_registers {
+  EE_REG_ROLL_EXPO,
+  EE_REG_PITCH_EXPO,
+  EE_REG_YAW_EXPO,
+  NUM_EEPROM_REG,
+};
+
+eeprom_datum edRollExpo = eeprom_datum(0, (int8_t)20);
+eeprom_datum edPitchExpo = eeprom_datum(0, (int8_t)20);
+eeprom_datum edYawExpo = eeprom_datum(0, (int8_t)20);
+
+eeprom_datum eepromData[NUM_EEPROM_REG] = {
+  edRollExpo,
+  edPitchExpo,
+  edYawExpo,
+};
+
+
+
+//=============================================================================
+void readInitEEPROM(eeprom_datum eeData[], int size) {
+  serPrntNL("readInitEEPROM()");
+  String tmpStr;
+  uint8_t tmpVal;
+  int byte_read_cnt = 0;
+
+  for (int i = 0; i < size; i++) {
+    tmpVal = EEPROM.read(i);
+    eeData[i] = eeprom_datum(i, EEPROM.read(i));
+    tmpStr = "readInitEEPROM()[";
+    tmpStr += i;
+    tmpStr += "]:";
+    tmpStr += " " + (String)eeData[i].get_eng_val();
+    byte_read_cnt++;
+    serPrntNL(tmpStr);
+  }
+}
+
+
+//=============================================================================
+void readLocalEEPROM(eeprom_datum eeData[], int size) {
+  serPrntNL("readLocalEEPROM()");
+  String tmpStr;
+  int byte_read_cnt = 0;
+
+  for (int i = 0; i < size; i++) {
+    eeData[i].set_val(EEPROM.read(i));
+    tmpStr = "[";
+    tmpStr += i;
+    tmpStr += "]:";
+    tmpStr += eeData[i].get_eng_val();
+    byte_read_cnt++;
+    serPrntNL(tmpStr);
+  }
+}
+
+//=================================================================================================
+void saveEEPROM() {
+  eepromData[EE_REG_ROLL_EXPO].update_val(voRoll.expoParam);
+  eepromData[EE_REG_PITCH_EXPO].update_val(voPitch.expoParam);
+  eepromData[EE_REG_YAW_EXPO].update_val(voYaw.expoParam);
+  writeLocalEEPROM(eepromData, NUM_EEPROM_REG);
+}
+
+//=================================================================================================
+void writeLocalEEPROM(eeprom_datum eeData[], int size) {
+  serPrntNL("writeEEPROM()");
+  String tmpStr;
+  uint8_t _data;
+  int byte_write_cnt = 0;
+
+
+  for (int i = 0; i < size; i++) {
+    _data = eeData[i].get_new_val();
+    if (_data != eeData[i].get_cur_val())
+      EEPROM.write(i, eeData[i].get_new_val());
+    serPrntNL("Wrote:" + (String)_data);
+    byte_write_cnt++;
+    delay(EEPROM_DELAY);
+  }
+
+  if (byte_write_cnt > 0) {
+    tmpStr = "Wrote ";
+    tmpStr += byte_write_cnt;
+    tmpStr += " of ";
+    tmpStr += size;
+    tmpStr += " bytes to EEPROM";
+  }
+  else {
+    tmpStr = "No changes to EEPROM";
+  }
+  serPrntNL(tmpStr);
+
+  //byte_write_cnt;
+}
 
 //=============================================================================
 void setup() {
@@ -274,11 +376,17 @@ void setup() {
   //vo03 = varObj(V_TYP_UINT10, false);
   //vo03.expoMode = EXPO_MODE;
 
+  ledToggle();
+  delay(1000);
+
   Serial.println("voRoll:" + voRoll.getBC());
   Serial.println("voPitch:" + voPitch.getBC());
   Serial.println("voYaw:" + voYaw.getBC());
   Serial.println("vo03:" + vo03.getBC());
 
+  Serial.println("Read EEPROM");
+  readInitEEPROM(eepromData, NUM_EEPROM_REG);
+  delay(1000);
 
   ledToggle();
   delay(1000);
@@ -297,7 +405,22 @@ void handleSerIn() {
       serPrnt("ic:" + String(iCount) + ":");
       serPrntNL("toggle between serial and joystick mode");
     }
+    else if (inStr == "save") {
+      serPrntNL("Save eeprom");
+      saveEEPROM();
+    }
+    else if (inStr == "init") {
+      voRoll.expoParam = PITCH_EXPO_PARAM;
+      voPitch.expoParam = ROLL_EXPO_PARAM;
+      voYaw.expoParam = YAW_EXPO_PARAM;
 
+      serPrntNL("init eeprom");
+      saveEEPROM();
+    }
+    else if (inStr == "read") {
+      serPrntNL("read eeprom");
+      readLocalEEPROM(eepromData, NUM_EEPROM_REG);
+    }
     else if (inStr == "h") {
       prntHex = !prntHex;
       serPrnt("ic:" + String(iCount) + ":");
@@ -552,11 +675,14 @@ void taskOpMode() {
       case OP_MD_ROLL:
       case OP_MD_PITCH:
       case OP_MD_YAW:
-        expoModeTmr--;
-        if (expoModeTmr <= 0)
-        {
-          opMd = OP_MD_NONE;
-        }
+        if (voYaw.getVal() > 550 || voYaw.getVal() < 475)
+          expoModeTmr = EXPO_EDIT_MODE_TIMEOUT;
+
+        //expoModeTmr--;
+        //if (expoModeTmr <= 0)
+        //{
+        //  opMd = OP_MD_NONE;
+        //}
         break;
     }
 
@@ -594,6 +720,36 @@ void taskNeoPixel() {
 }
 
 //=============================================================================
+void setAxisExpo(varObj* voPtr) {
+  static int _expoIncCnt = 0;
+  static int _expoDecCnt = 0;
+
+  if(voYaw.getVal() < YAW_EXPO_INC_THRES) {
+    _expoIncCnt++;
+    _expoDecCnt = 0;
+
+    if (_expoIncCnt == 1) {
+      voPtr->expoParam++;
+      voPtr->setExpo();
+    }
+
+  }
+  else if (voYaw.getVal() > YAW_EXPO_DEC_THRES) {
+    _expoDecCnt++;
+    _expoIncCnt = 0;
+
+    if (_expoDecCnt == 1) {
+      voPtr->expoParam--;
+      voPtr->setExpo();
+    }
+  }
+  else {
+    _expoIncCnt = 0;
+    _expoDecCnt = 0;
+  }
+}
+
+//=============================================================================
 void taskExpoEdit() {
   switch (opMd) {
     case OP_MD_NONE:
@@ -601,82 +757,15 @@ void taskExpoEdit() {
       break;
 
     case OP_MD_ROLL:
-      //Serial.println("tpe: ROll");
-      if (voYaw.getVal() > 1020) {
-        enRollExpoInc++;
-        enRollExpoDec = 0;
-
-        if(enRollExpoInc == 1)
-        {
-          voRoll.expoParam++;
-          voRoll.setExpo();
-        }
-      }
-      else if (voYaw.getVal() < 3) {
-        enRollExpoDec++;
-        enRollExpoInc = 0;
-
-        if (enRollExpoDec == 1)
-        {
-          voRoll.expoParam--;
-          voRoll.setExpo();
-        }
-      }
-      else {
-        enRollExpoInc = 0;
-        enRollExpoDec = 0;
-      }
+      setAxisExpo(&voRoll);
       break;
 
     case OP_MD_PITCH:
-      //----yaw max: inc pitch expo
-      if (voYaw.getVal() > 1020) {
-
-        enPitchExpoInc++;
-        enPitchExpoDec = 0;
-
-        if(enPitchExpoInc == 1){
-          voPitch.expoParam++;
-          voPitch.setExpo();
-        }
-      }
-      //---yaw min: dec pitch expo
-      else if (voYaw.getVal() < 3) {
-        enYawExpoInc++;
-        enYawExpoDec = 0;
-
-
-        if(enPitchExpoDec == 1) {
-          voPitch.expoParam--;
-          voPitch.setExpo();
-        }
-      }
-      //---everything else
-      else {
-        enPitchExpoInc = 0;
-        enPitchExpoInc = 0;
-      }
+      setAxisExpo(&voPitch);
       break;
 
     case OP_MD_YAW:
-      if (voYaw.getVal() > 1020) {
-        enYawExpoInc++;
-        enYawExpoDec = 0;
-
-        if(enYawExpoInc == 1){
-          voYaw.expoParam++;
-          voYaw.setExpo();
-        }
-      }
-      else if (voYaw.getVal() < 3) {
-        enYawExpoDec = 0;
-        enYawExpoInc++;
-        
-        if(enYawExpoDec == 1) {
-          voYaw.expoParam--;
-          voYaw.setExpo();
-        }
-      }
+      setAxisExpo(&voYaw);
       break;
   }
 }
